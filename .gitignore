@@ -1,0 +1,9 @@
+.env
+venv
+alembic.ini
+alembic/
+__pycache__/
+*.pyc
+.vscode/
+storage
+.DS_Store
