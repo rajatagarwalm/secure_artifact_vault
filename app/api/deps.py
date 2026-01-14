@@ -74,8 +74,11 @@ def require_permission(permission: str):
     ):
         if not has_permission(user["permissions"], permission):
             AuditRepository(db).log(
-                action="permission_denied",
+                action="share_accessed",
+                resource_type="share",
                 actor_id=user["id"],
+                org_id=user["org_id"],
+                resource_id=str(user["id"]),
                 extra_data={"required": permission},
             )
             raise HTTPException(

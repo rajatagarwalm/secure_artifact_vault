@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user
@@ -10,6 +10,7 @@ from app.schemas.auth import (
     UserMeResponse,
 )
 from app.services.auth_service import AuthService
+from app.core.rate_limiter import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,15 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
     try:
+        rate_key = f"{request.client.host}:{payload.email}"
+
+        if not check_rate_limit(rate_key):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many login attempts. Try again later.",
+            )
         access, refresh = AuthService(db).login(
             payload.email,
             payload.password,

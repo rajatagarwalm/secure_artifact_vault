@@ -49,3 +49,23 @@ class ArtifactRepository:
     def soft_delete(self, artifact: Artifact):
         artifact.is_deleted = True
         self.db.commit()
+
+    def search_by_prefix(
+        self,
+        *,
+        org_id: str,
+        prefix: str,
+        limit: int = 20,
+    ):
+        return (
+            self.db.query(Artifact)
+            .filter(
+                Artifact.org_id == org_id,
+                Artifact.is_deleted.is_(False),
+                Artifact.filename.ilike(f"{prefix}%"),
+            )
+            .order_by(Artifact.filename)
+            .limit(limit)
+            .all()
+        )
+

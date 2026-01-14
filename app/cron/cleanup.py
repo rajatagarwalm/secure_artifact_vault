@@ -9,6 +9,7 @@ from app.db.models.user_org_role import UserOrgRole
 from app.db.models.refresh_token import RefreshToken
 from app.db.models.audit_log import AuditLog
 from app.db.models.organization import Organization
+from app.db.models.share import Share
 
 ARTIFACT_RETENTION_DAYS = 0
 AUDIT_RETENTION_DAYS = 7
@@ -67,7 +68,6 @@ def cleanup_users(db):
     )
 
     for user in inactive_users:
-        # Protect SYSTEM superadmin
         if system_org:
             roles = (
                 db.query(UserOrgRole)
@@ -80,17 +80,15 @@ def cleanup_users(db):
             )
             if roles > 0:
                 logger.info(
-                    "Skipping deletion of SYSTEM superadmin %s",
+                    "Skipping SYSTEM superadmin %s",
                     user.email,
                 )
                 continue
 
-        # Delete refresh tokens
         db.query(RefreshToken).filter(
             RefreshToken.user_id == user.id
         ).delete(synchronize_session=False)
 
-        # Delete role mappings
         db.query(UserOrgRole).filter(
             UserOrgRole.user_id == user.id
         ).delete(synchronize_session=False)
@@ -115,6 +113,20 @@ def cleanup_audit_logs(db):
     logger.info("Deleted %d audit log records", deleted)
 
 
+def cleanup_expired_shares(db):
+    logger.info("Cleaning up expired share links")
+
+    now = datetime.utcnow()
+
+    expired_count = (
+        db.query(Share)
+        .filter(Share.expires_at < now)
+        .delete(synchronize_session=False)
+    )
+
+    logger.info("Deleted %d expired share links", expired_count)
+
+
 def run_cleanup():
     db = SessionLocal()
 
@@ -124,6 +136,7 @@ def run_cleanup():
         cleanup_artifacts(db)
         cleanup_users(db)
         cleanup_audit_logs(db)
+        cleanup_expired_shares(db)
 
         db.commit()
         logger.info("Cleanup job completed successfully")

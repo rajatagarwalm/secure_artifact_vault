@@ -2,6 +2,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
     UploadFile,
     File,
     status,
@@ -15,33 +16,25 @@ from app.services.artifact_service import ArtifactService
 
 router = APIRouter(prefix="/artifacts", tags=["Artifacts"])
 
-
 @router.post(
     "/upload",
-    response_model=ArtifactResponse,
     dependencies=[Depends(require_permission("artifact:write"))],
 )
-def upload_artifact(
+async def upload_artifact(
     file: UploadFile = File(...),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not user.get("org_id"):
-        raise HTTPException(status_code=400, detail="Organization context missing")
-
-    artifact = ArtifactService(db).upload(
-        org_id=user["org_id"],
-        owner_id=user["id"],
+    artifact = await ArtifactService(db).upload_streaming(
         file=file,
+        user=user,
     )
 
-    return ArtifactResponse(
-        id=str(artifact.id),
-        filename=artifact.filename,
-        content_type=artifact.content_type,
-        created_at=artifact.created_at,
-    )
-
+    return {
+        "id": str(artifact.id),
+        "filename": artifact.filename,
+        "checksum": artifact.checksum,
+    }
 
 @router.get(
     "",
@@ -69,37 +62,54 @@ def list_artifacts(
         ]
     )
 
-
 @router.get(
-    "/{artifact_id}",
+    "/search",
+    response_model=ArtifactListResponse,
     dependencies=[Depends(require_permission("artifact:read"))],
 )
+def search_artifacts(
+    q: str,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    artifacts = ArtifactService(db).search_artifacts_by_prefix(
+        prefix=q,
+        user=user,
+        limit=limit,
+    )
+
+    return ArtifactListResponse(
+        artifacts=[
+            ArtifactResponse(
+                id=str(a.id),
+                filename=a.filename,
+                content_type=a.content_type,
+                checksum=a.checksum,
+                created_at=a.created_at,
+            )
+            for a in artifacts
+        ]
+    )
+
+@router.get("/{artifact_id}")
 def download_artifact(
     artifact_id: str,
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    try:
-        artifact = ArtifactService(db).get_artifact(
-            artifact_id=artifact_id,
-            user_org_id=user["org_id"],
-            is_superadmin="*" in user["permissions"],
-        )
+    artifact, stream = ArtifactService(db).get_download_stream(
+        artifact_id=artifact_id,
+        user=user,
+    )
 
-        def file_iterator():
-            with open(artifact.file_path, "rb") as f:
-                yield from f
-
-        return StreamingResponse(
-            file_iterator(),
-            media_type=artifact.content_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{artifact.filename}"'
-            },
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-
+    return StreamingResponse(
+        stream(),
+        media_type=artifact.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{artifact.filename}"'
+        },
+    )
 
 @router.delete(
     "/{artifact_id}",

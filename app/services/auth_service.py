@@ -58,6 +58,12 @@ class AuthService:
         self.audit_repo.log(
             action="login",
             actor_id=str(user.id),
+            resource_type="share",
+            org_id=None,
+            resource_id=str(user.id),
+            extra_data={
+                
+            },
         )
 
         return access_token, refresh_token
@@ -80,7 +86,11 @@ class AuthService:
             self.refresh_repo.revoke_all_for_user(user_id)
             self.audit_repo.log(
                 action="refresh_token_reuse_detected",
-                actor_id=user_id,
+                actor_id=str(user_id),
+                resource_type="refresh_token",
+                org_id=None,
+                resource_id=str(user_id),
+                extra_data={}
             )
             raise ValueError("Refresh token reuse detected")
 
@@ -106,7 +116,11 @@ class AuthService:
 
         self.audit_repo.log(
             action="refresh_token_rotated",
-            actor_id=user_id,
+            actor_id=str(user_id),
+            resource_type="refresh_token",
+            org_id=None,
+            resource_id=str(user_id),
+            extra_data={}
         )
 
         return new_access_token, new_refresh_token
@@ -115,5 +129,9 @@ class AuthService:
         self.refresh_repo.revoke_all_for_user(user_id)
         self.audit_repo.log(
             action="logout",
-            actor_id=user_id,
+            actor_id=str(user_id),
+            resource_type="logout",
+            org_id=None,
+            resource_id=str(user_id),
+            extra_data={}
         )

@@ -1,3 +1,4 @@
+from typing import Dict, Optional
 from sqlalchemy.orm import Session
 from app.db.models.audit_log import AuditLog
 
@@ -8,22 +9,24 @@ class AuditRepository:
 
     def log(
         self,
+        *,
         action: str,
-        actor_id: str | None = None,
-        org_id: str | None = None,
-        resource_type: str = "system",
-        resource_id: str | None = None,
-        extra_data: dict | None = None,
-    ):
-        entry = AuditLog(
+        resource_type: str,
+        actor_id: Optional[str] = None,
+        org_id: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        extra_data: Optional[Dict] = None,
+    ) -> None:
+        audit = AuditLog(
             action=action,
+            resource_type=resource_type,
             actor_id=actor_id,
             org_id=org_id,
-            resource_type=resource_type,
             resource_id=resource_id,
             extra_data=extra_data,
         )
-        self.db.add(entry)
+
+        self.db.add(audit)
         self.db.commit()
 
     def list_logs(self, limit: int = 50, offset: int = 0):

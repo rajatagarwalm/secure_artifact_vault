@@ -53,13 +53,16 @@ class ShareService:
         artifact = self.artifact_repo.get_by_id(str(share.artifact_id))
         if not artifact:
             raise ValueError("Artifact not found")
-
+        
         self.audit.log(
             action="share_accessed",
-            actor_id=None,
-            org_id=str(artifact.org_id),
             resource_type="share",
+            actor_id=None,
+            org_id=artifact.org_id,
             resource_id=str(share.id),
+            extra_data={
+                
+            },
         )
 
         return artifact

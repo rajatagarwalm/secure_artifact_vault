@@ -1,17 +1,18 @@
 import logging
-import sys
+from app.core.request_context import get_request_id
 
 
-def setup_logging():
+class RequestIdFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = get_request_id()
+        return True
+
+
+def configure_logging():
     logging.basicConfig(
         level=logging.INFO,
-        format=(
-            "%(asctime)s | %(levelname)s | "
-            "%(name)s | %(message)s"
-        ),
-        handlers=[logging.StreamHandler(sys.stdout)],
+        format="%(asctime)s %(levelname)s [request_id=%(request_id)s] %(message)s",
     )
 
-    # Reduce noise from third-party libs
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    root = logging.getLogger()
+    root.addFilter(RequestIdFilter())

@@ -2,11 +2,11 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.repositories.org_repo import OrganizationRepository
 from app.repositories.audit_repo import AuditRepository
-from db.models.artifact import Artifact
-from db.models.organization import Organization
+from app.db.models.artifact import Artifact
+from app.db.models.organization import Organization
 from app.db.models.user import User
-from db.models.share import Share
-from db.models.user_org_role import UserOrgRole
+from app.db.models.share import Share
+from app.db.models.user_org_role import UserOrgRole
 
 
 class OrganizationService:
@@ -19,9 +19,13 @@ class OrganizationService:
         org = self.repo.create(name)
         self.audit.log(
             action="org_created",
-            actor_id=actor_id,
             resource_type="organization",
+            actor_id=actor_id,
+            org_id=org.id,
             resource_id=str(org.id),
+            extra_data={
+                "org_name": name,
+            },
         )
         return org
 
@@ -57,10 +61,13 @@ class OrganizationService:
 
         self.audit.log(
             action="org_soft_deleted",
+            resource_type="organization",
             actor_id=actor["id"],
             org_id=org.id,
-            resource_type="organization",
             resource_id=str(org.id),
+            extra_data={
+                
+            },
         )
 
         # 2️⃣ Deactivate users of org
@@ -73,14 +80,15 @@ class OrganizationService:
 
         for user in users:
             user.is_active = False
-
             self.audit.log(
-                action="user_deactivated",
+                action="org_user_deactivated",
+                resource_type="user",
                 actor_id=actor["id"],
                 org_id=org.id,
-                resource_type="user",
                 resource_id=str(user.id),
-                extra_data={"email": user.email},
+                extra_data={
+                    "user_email": user.email
+                },
             )
 
         # 3️⃣ Soft delete artifacts
@@ -99,11 +107,13 @@ class OrganizationService:
 
             self.audit.log(
                 action="artifact_soft_deleted",
+                resource_type="artifact",
                 actor_id=actor["id"],
                 org_id=org.id,
-                resource_type="artifact",
                 resource_id=str(artifact.id),
-                extra_data={"filename": artifact.filename},
+                extra_data={
+                    "filename": artifact.filename
+                },
             )
 
         # 4️⃣ Invalidate share links
@@ -121,10 +131,13 @@ class OrganizationService:
 
             self.audit.log(
                 action="share_revoked",
+                resource_type="share",
                 actor_id=actor["id"],
                 org_id=org.id,
-                resource_type="share",
                 resource_id=str(share.id),
+                extra_data={
+                    
+                },
             )
 
         self.db.commit()
