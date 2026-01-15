@@ -1010,6 +1010,6 @@ Solution: Check `MAX_UPLOAD_SIZE_MB` configuration.
 
 ---
 
-**Made with ❤️ for secure artifact management**
+**secure artifact management**
 
-For the latest updates and more information, visit the [GitHub Repository](https://github.com/yourusername/secure-artifact-vault)
+For the latest updates and more information, visit the [GitHub Repository](https://github.com/rajatagarwalm/secure_artifact_vault)
