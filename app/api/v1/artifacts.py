@@ -57,6 +57,7 @@ def list_artifacts(
                 filename=a.filename,
                 content_type=a.content_type,
                 created_at=a.created_at,
+                checksum=a.checksum,
             )
             for a in artifacts
         ]

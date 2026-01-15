@@ -37,7 +37,7 @@ COPY alembic.ini .
 COPY scripts scripts
 COPY entrypoint.sh /entrypoint.sh
 
-RUN mkdir -p app/data/artifacts \
+RUN mkdir -p app/storage/artifacts \
     && chown -R appuser:appgroup /app
 
 RUN chmod +x /entrypoint.sh

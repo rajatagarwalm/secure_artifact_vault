@@ -10,7 +10,7 @@ from app.db.models.user_org_role import UserOrgRole
 from app.db.models.artifact import Artifact
 from app.core.security import hash_password
 
-ARTIFACT_DIR = "/app/data/artifacts"
+ARTIFACT_DIR = "/app/storage/artifacts"
 PASSWORD = "password123"
 SYSTEM_ORG_NAME = "SYSTEM"
 
