@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-artifact-vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-api
+  template:
+    metadata:
+      labels:
+        app: vault-api
+    spec:
+      containers:
+        - name: api
+          image: secure-artifact-vault:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: vault-config
+            - secretRef:
+                name: vault-secrets
+          volumeMounts:
+            - name: artifact-storage
+              mountPath: /app/app/storage/artifacts
+      volumes:
+        - name: artifact-storage
+          persistentVolumeClaim:
+            claimName: artifact-pvc
