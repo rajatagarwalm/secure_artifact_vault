@@ -2,11 +2,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vault-api-service
+  namespace: artifact-vault
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: vault-api
   ports:
-    - port: 8000
+    - port: 80
       targetPort: 8000
-      nodePort: 30080

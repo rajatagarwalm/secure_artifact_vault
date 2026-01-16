@@ -16,6 +16,9 @@ A production-ready secure file storage and sharing system built with FastAPI, Po
 - [Database Schema](#database-schema)
 - [Security](#security)
 - [Deployment](#deployment)
+  - [Docker Deployment](#docker-deployment)
+  - [Local Kubernetes Deployment (Minikube)](#local-kubernetes-deployment-minikube)
+  - [Kubernetes Deployment](#kubernetes-deployment)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [License](#license)
@@ -132,8 +135,8 @@ Secure Artifact Vault is a comprehensive file storage and management system desi
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/secure-artifact-vault.git
-cd secure-artifact-vault
+git clone https://github.com/rajatagarwalm/secure_artifact_vault
+cd secure_artifact_vault
 ```
 
 ### 2. Create Virtual Environment
@@ -262,7 +265,6 @@ The API will be available at `http://localhost:8000`
 ### Interactive API Documentation
 
 - **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
 
 ### Production Server
 
@@ -285,231 +287,50 @@ docker-compose down
 
 ## 📚 API Documentation
 
+All APIs require JWT authentication unless otherwise noted.
+
 ### Authentication Endpoints
 
-#### Login
-```http
-POST /auth/login
-Content-Type: application/json
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - Logout and invalidate session
+- `GET /api/v1/auth/me` - Get current user information
+- `GET /api/v1/auth/permissions` - Get current user permissions
 
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
+### User Management Endpoints
 
-Response:
-```json
-{
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "token_type": "bearer"
-}
-```
+- `GET /api/v1/users` - List all users
+- `POST /api/v1/users/assign-org` - Assign user to organization with role
+- `GET /api/v1/users/{user_id}/permissions` - Get user permissions
 
-#### Refresh Token
-```http
-POST /auth/refresh
-Authorization: Bearer <refresh_token>
-```
+### Artifact Management Endpoints
 
-#### Get Current User
-```http
-GET /auth/me
-Authorization: Bearer <access_token>
-```
-
-#### Logout
-```http
-POST /auth/logout
-Authorization: Bearer <access_token>
-```
-
-### User Endpoints
-
-#### List Users
-```http
-GET /users?skip=0&limit=10
-Authorization: Bearer <access_token>
-```
-
-#### Get User by ID
-```http
-GET /users/{user_id}
-Authorization: Bearer <access_token>
-```
-
-#### Create User
-```http
-POST /users
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "email": "newuser@example.com",
-  "password": "password123",
-  "full_name": "New User"
-}
-```
-
-#### Update User
-```http
-PUT /users/{user_id}
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "full_name": "Updated Name",
-  "is_active": true
-}
-```
-
-#### Delete User
-```http
-DELETE /users/{user_id}
-Authorization: Bearer <access_token>
-```
-
-### Artifact Endpoints
-
-#### List Artifacts
-```http
-GET /artifacts?org_id=org123&skip=0&limit=10
-Authorization: Bearer <access_token>
-```
-
-#### Get Artifact
-```http
-GET /artifacts/{artifact_id}
-Authorization: Bearer <access_token>
-```
-
-#### Create Artifact
-```http
-POST /artifacts
-Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
-
-file: <binary_file>
-name: "document.pdf"
-org_id: "org123"
-```
-
-#### Update Artifact
-```http
-PUT /artifacts/{artifact_id}
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "updated_name.pdf"
-}
-```
-
-#### Delete Artifact
-```http
-DELETE /artifacts/{artifact_id}
-Authorization: Bearer <access_token>
-```
-
-#### Download Artifact
-```http
-GET /artifacts/{artifact_id}/download
-Authorization: Bearer <access_token>
-```
+- `POST /api/v1/artifacts/upload` - Upload artifact
+- `GET /api/v1/artifacts` - List artifacts in organization
+- `GET /api/v1/artifacts/search` - Search artifacts by prefix
+- `GET /api/v1/artifacts/{artifact_id}` - Download artifact
+- `DELETE /api/v1/artifacts/{artifact_id}` - Delete artifact
 
 ### Organization Endpoints
 
-#### List Organizations
-```http
-GET /orgs
-Authorization: Bearer <access_token>
-```
-
-#### Get Organization
-```http
-GET /orgs/{org_id}
-Authorization: Bearer <access_token>
-```
-
-#### Create Organization
-```http
-POST /orgs
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "Organization Name"
-}
-```
-
-#### Update Organization
-```http
-PUT /orgs/{org_id}
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "name": "Updated Organization Name"
-}
-```
+- `GET /api/v1/orgs` - List all organizations
+- `POST /api/v1/orgs` - Create new organization
+- `DELETE /api/v1/orgs/{org_id}` - Delete organization
 
 ### Share Endpoints
 
-#### List Shares
-```http
-GET /shares?artifact_id=art123
-Authorization: Bearer <access_token>
-```
-
-#### Create Share
-```http
-POST /shares
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "artifact_id": "art123",
-  "target_user_id": "user456"
-}
-```
-
-#### Delete Share
-```http
-DELETE /shares/{share_id}
-Authorization: Bearer <access_token>
-```
+- `POST /api/v1/shares` - Create artifact share link
+- `GET /api/v1/shares/{share_id}/download` - Download shared artifact
 
 ### Audit Log Endpoints
 
-#### List Audit Logs
-```http
-GET /audit?skip=0&limit=50
-Authorization: Bearer <access_token>
-```
+- `GET /api/v1/audit/logs` - Retrieve audit logs with pagination
 
-#### Get Audit Log Details
-```http
-GET /audit/{log_id}
-Authorization: Bearer <access_token>
-```
+### Health & Monitoring Endpoints
 
-### Health & Monitoring
-
-#### Health Check
-```http
-GET /healthz
-```
-
-#### Readiness Check
-```http
-GET /readyz
-```
-
-#### Prometheus Metrics
-```http
-GET /metrics
-```
+- `GET /healthz` - Liveness probe (application health)
+- `GET /readyz` - Readiness probe (ready to serve traffic)
+- `GET /metrics` - Prometheus metrics
 
 ## 🧪 Testing
 
@@ -567,80 +388,15 @@ open htmlcov/index.html
 
 ## 🗄️ Database Schema
 
-### User Table
-```sql
-CREATE TABLE "user" (
-  id UUID PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  full_name VARCHAR(255),
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+The application uses PostgreSQL with the following tables:
 
-### Organization Table
-```sql
-CREATE TABLE organization (
-  id UUID PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  owner_id UUID NOT NULL REFERENCES "user"(id),
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Artifact Table
-```sql
-CREATE TABLE artifact (
-  id UUID PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  owner_id UUID NOT NULL REFERENCES "user"(id),
-  org_id UUID NOT NULL REFERENCES organization(id),
-  size_bytes BIGINT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Share Table
-```sql
-CREATE TABLE share (
-  id UUID PRIMARY KEY,
-  artifact_id UUID NOT NULL REFERENCES artifact(id),
-  target_user_id UUID NOT NULL REFERENCES "user"(id),
-  created_by UUID NOT NULL REFERENCES "user"(id),
-  expires_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### AuditLog Table
-```sql
-CREATE TABLE audit_log (
-  id UUID PRIMARY KEY,
-  action VARCHAR(50) NOT NULL,
-  user_id UUID NOT NULL REFERENCES "user"(id),
-  artifact_id UUID REFERENCES artifact(id),
-  resource_type VARCHAR(100),
-  resource_id VARCHAR(255),
-  details JSONB,
-  ip_address VARCHAR(45),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### RefreshToken Table
-```sql
-CREATE TABLE refresh_token (
-  id UUID PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES "user"(id),
-  token_hash VARCHAR(255) NOT NULL,
-  expires_at TIMESTAMP NOT NULL,
-  revoked BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+- **users** - User accounts and authentication
+- **organizations** - Organizational units for multi-tenancy
+- **user_org_roles** - User-organization role mappings
+- **artifacts** - File storage with metadata
+- **shares** - Artifact sharing between users
+- **audit_logs** - Complete operation audit trail
+- **refresh_tokens** - Token management for sessions
 
 ## 🔐 Security
 
@@ -723,41 +479,168 @@ docker run -p 8000:8000 \
 docker-compose up -d
 ```
 
-### Kubernetes Deployment
+### Local Kubernetes Deployment (Minikube)
 
-Create `k8s/deployment.yaml`:
+Deploy Secure Artifact Vault on a local Kubernetes cluster using Minikube.
 
+#### Prerequisites
+- Docker installed and running
+- Minikube installed (`brew install minikube` on macOS or follow [official guide](https://minikube.sigs.k8s.io/docs/start/))
+- kubectl CLI configured
+- Git for cloning repository
+
+#### Step-by-Step Instructions
+
+**1. Clone Repository**
+```bash
+git clone <YOUR_GITHUB_REPO_URL>
+cd secure-artifact-vault
+```
+
+**2. Start Minikube**
+```bash
+minikube start --driver=docker
+```
+
+**3. Configure Docker Daemon**
+```bash
+eval $(minikube docker-env)
+```
+
+**4. Build Application Image**
+```bash
+docker build -t secure-artifact-vault:latest .
+```
+
+**5. Create Kubernetes Namespace**
+```bash
+kubectl create namespace artifact-vault
+kubectl config set-context --current --namespace=artifact-vault
+```
+
+**6. Create Local Secrets**
+```bash
+kubectl apply -f k8s/secret.local.yaml
+```
+
+**Note:** Create `k8s/secret.local.yaml` with local development values:
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Secret
 metadata:
-  name: secure-artifact-vault
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: secure-artifact-vault
-  template:
-    metadata:
-      labels:
-        app: secure-artifact-vault
-    spec:
-      containers:
-      - name: api
-        image: secure-artifact-vault:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: vault-secrets
-              key: database-url
-        - name: JWT_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: vault-secrets
-              key: jwt-secret
+  name: vault-secrets
+  namespace: artifact-vault
+type: Opaque
+stringData:
+  database-url: "postgresql://artifact_user:artifact_pass@postgres:5432/artifact_vault"
+  jwt-secret-key: "local-development-secret-key-not-for-production"
+  postgres-password: "artifact_pass"
+```
+
+**7. Apply ConfigMap**
+```bash
+kubectl apply -f k8s/configmap.yaml
+```
+
+**8. Create Persistent Volume Claims**
+```bash
+kubectl apply -f k8s/postgres-pvc.yaml
+kubectl apply -f k8s/artifact-pvc.yaml
+```
+
+**9. Deploy PostgreSQL**
+```bash
+kubectl apply -f k8s/postgres.yaml
+```
+
+**10. Deploy FastAPI Application**
+```bash
+kubectl apply -f k8s/api.yaml
+kubectl apply -f k8s/api-service.yaml
+```
+
+**11. Verify Pods Are Running**
+```bash
+kubectl get pods
+```
+
+Expected output:
+```
+NAME                                       READY   STATUS    RESTARTS   AGE
+postgres-0                                 1/1     Running   0          2m
+secure-artifact-vault-xxxxxxxxxx-xxxxx     1/1     Running   0          1m
+secure-artifact-vault-xxxxxxxxxx-xxxxx     1/1     Running   0          1m
+```
+
+**12. Access Application**
+
+Get Minikube IP:
+```bash
+minikube ip
+```
+
+Access via NodePort:
+```bash
+# Get the NodePort assigned
+kubectl get service vault-service -n artifact-vault
+
+# Access application
+# Open browser: http://<minikube-ip>:<node-port>
+# Or use curl:
+curl http://$(minikube ip):<node-port>/healthz
+```
+
+#### Useful Minikube Commands
+
+```bash
+# View Minikube dashboard
+minikube dashboard
+
+# SSH into Minikube
+minikube ssh
+
+# View logs
+kubectl logs -f deployment/secure-artifact-vault -n artifact-vault
+
+# Port forward for local access
+kubectl port-forward svc/vault-service 8000:80 -n artifact-vault
+
+# Stop Minikube
+minikube stop
+
+# Delete Minikube cluster
+minikube delete
+```
+
+#### Troubleshooting
+
+**Pods not starting:**
+```bash
+# Check pod status
+kubectl describe pod <pod-name> -n artifact-vault
+
+# Check logs
+kubectl logs <pod-name> -n artifact-vault
+```
+
+**Database connection issues:**
+```bash
+# Verify PostgreSQL pod
+kubectl get pods -l app=postgres -n artifact-vault
+
+# Check PostgreSQL logs
+kubectl logs postgres-0 -n artifact-vault
+```
+
+**Port access issues:**
+```bash
+# Check if service is running
+kubectl get service vault-service -n artifact-vault
+
+# Port forward as alternative
+kubectl port-forward svc/vault-service 8000:80 -n artifact-vault
+
+# Then access http://localhost:8000
 ```
 
 ### AWS ECS Deployment
@@ -767,35 +650,6 @@ Push to ECR:
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
 docker tag secure-artifact-vault:latest <account>.dkr.ecr.us-east-1.amazonaws.com/secure-artifact-vault:latest
 docker push <account>.dkr.ecr.us-east-1.amazonaws.com/secure-artifact-vault:latest
-```
-
-### Reverse Proxy Configuration (Nginx)
-
-```nginx
-upstream api {
-    server localhost:8000;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name api.example.com;
-    
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-    
-    # Security headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-    
-    location / {
-        proxy_pass http://api;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
 ```
 
 ### Monitoring in Production
@@ -902,113 +756,6 @@ secure-artifact-vault/
 ├── README.md                   # This file
 └── LICENSE                     # License file
 ```
-
-## 🤝 Contributing
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Install dependencies: `pip install -r requirements.txt`
-4. Create tests for new features
-5. Run tests: `pytest tests/ --cov=app`
-6. Commit with descriptive messages: `git commit -am 'Add new feature'`
-7. Push to branch: `git push origin feature/my-feature`
-8. Create Pull Request
-
-### Code Style
-
-- Follow PEP 8 guidelines
-- Use type hints throughout
-- Document public functions with docstrings
-- Keep functions focused and small
-
-### Testing Requirements
-
-- All new features must have tests
-- Maintain or improve code coverage
-- All tests must pass before PR merge
-- Use fixtures from `conftest.py` for common setup
-
-### Commit Message Format
-
-```
-type(scope): subject
-
-body
-
-footer
-```
-
-Types: feat, fix, docs, style, refactor, test, chore
-
-Example:
-```
-feat(auth): add two-factor authentication
-
-Implement TOTP-based 2FA for user accounts.
-
-Closes #123
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-### Getting Help
-
-- **Documentation**: See API docs at `/docs`
-- **Issues**: Create an issue on GitHub
-- **Discussions**: Use GitHub Discussions for questions
-- **Email**: support@example.com
-
-### Common Issues
-
-#### Database Connection Error
-```
-Error: could not translate host name "db" to address
-```
-Solution: Ensure PostgreSQL is running and DATABASE_URL is correct.
-
-#### JWT Token Expired
-```
-Error: Invalid or expired token
-```
-Solution: Use the refresh endpoint to get a new access token.
-
-#### File Upload Size Exceeded
-```
-Error: File too large
-```
-Solution: Check `MAX_UPLOAD_SIZE_MB` configuration.
-
-## 🗺️ Roadmap
-
-- [ ] Two-factor authentication (2FA)
-- [ ] OAuth2/OIDC integration
-- [ ] WebSocket support for real-time updates
-- [ ] S3 backend support
-- [ ] Mobile app
-- [ ] Advanced search and filtering
-- [ ] API key authentication
-- [ ] Webhook support
-- [ ] Batch export/import
-- [ ] Full-text search
-
-## 📝 Changelog
-
-### Version 1.0.0 (Current)
-- Initial release
-- User authentication and management
-- Artifact storage and sharing
-- Organization management
-- Complete audit logging
-- Prometheus metrics
-- Comprehensive test suite (286 tests, 62% coverage)
-
----
 
 **secure artifact management**
 
