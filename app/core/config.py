@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(7, env="REFRESH_TOKEN_EXPIRE_DAYS")
 
     MAX_UPLOAD_SIZE_MB: int = Field(1024, env="MAX_UPLOAD_SIZE_MB")  # 1 GB
+    
+    # Password expiration settings (in hours)
+    TEMP_PASSWORD_VALIDITY_HOURS: int = Field(24, env="TEMP_PASSWORD_VALIDITY_HOURS")
 
     @property
     def DATABASE_URL(self) -> str:

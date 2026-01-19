@@ -10,7 +10,7 @@ echo ""
 
 # Check if venv exists
 if [ ! -d "venv" ]; then
-    echo "❌ Virtual environment not found!"
+    echo "Virtual environment not found!"
     echo "Please run: python -m venv venv"
     exit 1
 fi
@@ -18,11 +18,11 @@ fi
 # Activate venv
 source venv/bin/activate
 
-echo "✅ Virtual environment activated"
+echo "Virtual environment activated"
 echo ""
 
 # Install/update requirements
-echo "📦 Installing test dependencies..."
+echo "Installing test dependencies..."
 pip install -q pytest pytest-asyncio pytest-cov httpx
 
 echo ""
@@ -39,7 +39,7 @@ echo "=================================================="
 echo "Test Run Complete!"
 echo "=================================================="
 echo ""
-echo "📊 Coverage report generated in: htmlcov/index.html"
+echo "Coverage report generated in: htmlcov/index.html"
 echo ""
 echo "Common commands:"
 echo "  pytest tests/                              # Run all tests"

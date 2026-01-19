@@ -4,7 +4,7 @@ metadata:
   name: secure-artifact-vault
   namespace: artifact-vault
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: vault-api

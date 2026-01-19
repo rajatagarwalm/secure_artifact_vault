@@ -2,7 +2,7 @@
 
 A production-ready secure file storage and sharing system built with FastAPI, PostgreSQL, and modern security practices.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
@@ -23,7 +23,7 @@ A production-ready secure file storage and sharing system built with FastAPI, Po
 - [Contributing](#contributing)
 - [License](#license)
 
-## 🎯 Overview
+## Overview
 
 Secure Artifact Vault is a comprehensive file storage and management system designed for organizations that need secure, auditable artifact storage with fine-grained access control. It provides features for user authentication, organization management, artifact storage, sharing capabilities, and complete audit logging.
 
@@ -35,7 +35,7 @@ Secure Artifact Vault is a comprehensive file storage and management system desi
 - Prometheus metrics
 - Production-ready Docker deployment
 
-## ✨ Features
+## Features
 
 ### Authentication & Authorization
 - **JWT-based authentication** with access and refresh tokens
@@ -43,6 +43,10 @@ Secure Artifact Vault is a comprehensive file storage and management system desi
 - **User management** with activation/deactivation
 - **Role-based access control** (RBAC) with permissions
 - **Organization hierarchy** with user-org-role mapping
+- **Password management** with expiration and history tracking
+- **Temporary password generation** for admin-created users
+- **Password change enforcement** for expired passwords
+- **Password history** to prevent reuse
 
 ### Artifact Management
 - **Secure file storage** with size validation
@@ -76,7 +80,7 @@ Secure Artifact Vault is a comprehensive file storage and management system desi
 - **Database encryption** support
 - **Secure token handling**
 
-## 🏗️ Architecture
+## Architecture
 
 ### Technology Stack
 
@@ -130,7 +134,7 @@ Secure Artifact Vault is a comprehensive file storage and management system desi
 - **Docker & Docker Compose** (for containerized deployment)
 - **Git** (for version control)
 
-## 🚀 Installation
+## Installation
 
 ### 1. Clone the Repository
 
@@ -248,7 +252,7 @@ class Settings(BaseSettings):
         env_file = ".env"
 ```
 
-## 🏃 Running the Application
+## Running the Application
 
 ### Development Server
 
@@ -285,7 +289,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 All APIs require JWT authentication unless otherwise noted.
 
@@ -300,7 +304,10 @@ All APIs require JWT authentication unless otherwise noted.
 ### User Management Endpoints
 
 - `GET /api/v1/users` - List all users
+- `POST /api/v1/users` - Create new user with default temporary password (superadmin only)
 - `POST /api/v1/users/assign-org` - Assign user to organization with role
+- `POST /api/v1/users/change-password` - Change own password (user)
+- `POST /api/v1/users/reset-password` - Reset user password (superadmin only)
 - `GET /api/v1/users/{user_id}/permissions` - Get user permissions
 
 ### Artifact Management Endpoints
@@ -332,7 +339,7 @@ All APIs require JWT authentication unless otherwise noted.
 - `GET /readyz` - Readiness probe (ready to serve traffic)
 - `GET /metrics` - Prometheus metrics
 
-## 🧪 Testing
+## Testing
 
 ### Run All Tests
 
@@ -386,7 +393,7 @@ open htmlcov/index.html
 
 **Current Coverage:** 62% with 286 passing tests
 
-## 🗄️ Database Schema
+## Database Schema
 
 The application uses PostgreSQL with the following tables:
 
@@ -398,7 +405,7 @@ The application uses PostgreSQL with the following tables:
 - **audit_logs** - Complete operation audit trail
 - **refresh_tokens** - Token management for sessions
 
-## 🔐 Security
+## Security
 
 ### Best Practices Implemented
 
@@ -457,7 +464,7 @@ Never commit sensitive information:
 - Database passwords
 - API tokens
 
-## 📦 Deployment
+## Deployment
 
 ### Docker Deployment
 
@@ -479,9 +486,9 @@ docker run -p 8000:8000 \
 docker-compose up -d
 ```
 
-### Local Kubernetes Deployment (Minikube)
+### Local Kubernetes Deployment (Minikube) - Fresh Setup
 
-Deploy Secure Artifact Vault on a local Kubernetes cluster using Minikube.
+Deploy Secure Artifact Vault on a clean local Kubernetes cluster using Minikube.
 
 #### Prerequisites
 - Docker installed and running
@@ -489,41 +496,243 @@ Deploy Secure Artifact Vault on a local Kubernetes cluster using Minikube.
 - kubectl CLI configured
 - Git for cloning repository
 
-#### Step-by-Step Instructions
+---
 
-**1. Clone Repository**
+#### **AUTOMATED DEPLOYMENT (Recommended)**
+
+The easiest way to deploy - runs everything automatically in one command!
+
+##### Deployment Script Overview
+
+The `deploy-minikube.sh` script automates the entire deployment process:
+
+**Script Location:** `./deploy-minikube.sh`
+
+**What it does:**
+- Validates prerequisites (Docker, Minikube, kubectl)
+- Deletes existing Minikube cluster for clean slate
+- Starts fresh Minikube instance with Docker driver
+- Builds Docker image for the application
+- Creates Kubernetes namespace (`artifact-vault`)
+- Sets up secrets for database credentials and JWT tokens
+- Creates persistent volumes for database and artifacts
+- Deploys PostgreSQL database
+- Runs database migrations automatically
+- Seeds initial data (organizations, users, etc.)
+- Deploys FastAPI application (3 replicas)
+- Displays access information and URLs
+
+##### One-Command Deployment
+
 ```bash
+# 1. Clone repository
 git clone <YOUR_GITHUB_REPO_URL>
 cd secure-artifact-vault
+
+# 2. Make script executable and run
+chmod +x deploy-minikube.sh
+./deploy-minikube.sh
 ```
 
-**2. Start Minikube**
+**That's it!** The script will handle everything automatically.
+
+**Expected time:** ~3-5 minutes (first run takes longer due to Docker image build)
+
+**Script output example:**
+```
+[INFO] Starting Secure Artifact Vault Minikube deployment...
+[INFO] Checking prerequisites...
+[INFO] All prerequisites met
+[INFO] Starting Minikube...
+[INFO] Minikube started
+[INFO] Building Docker image...
+[INFO] Docker image built
+[INFO] Creating Kubernetes namespace...
+[INFO] Namespace created
+[INFO] Deploying PostgreSQL...
+[INFO] PostgreSQL deployed and ready
+[INFO] Deploying Secure Artifact Vault application...
+[INFO] Application deployed and ready
+
+===============================================
+Application Access Information
+===============================================
+Minikube IP:        192.168.58.2
+Service Port:       80
+NodePort:           31234
+
+Application URL:    http://192.168.58.2:31234
+Swagger UI:         http://192.168.58.2:31234/docs
+Health Check:       http://192.168.58.2:31234/healthz
+
+Alternative (Port Forwarding):
+  kubectl port-forward svc/vault-api-service 8000:80
+  Then access: http://localhost:8000
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+##### Access the Application
+
+Once deployment completes, access the application:
+
+1. **Swagger UI (Interactive API docs):** `http://<minikube-ip>:<nodeport>/docs`
+2. **Health Check:** `http://<minikube-ip>:<nodeport>/healthz`
+3. **Metrics:** `http://<minikube-ip>:<nodeport>/metrics` (Prometheus)
+
+##### Port Forwarding (Alternative Access)
+
+```bash
+kubectl port-forward svc/vault-api-service 8000:80 -n artifact-vault
+# Then access: http://localhost:8000
+```
+
+---
+
+#### **For Detailed Reference**
+
+For step-by-step instructions and troubleshooting, see [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+Key sections:
+- Manual step-by-step deployment
+- Accessing the application
+- Useful kubectl commands
+- Troubleshooting guide
+- Cleanup procedures
+
+---
+
+#### **Quick Start (Complete Fresh Deployment - Manual)**
+
+If you prefer manual control or the script doesn't work, follow these steps:
+
+```bash
+# 1. Clone and navigate
+git clone <YOUR_GITHUB_REPO_URL>
+cd secure-artifact-vault
+
+# 2. Clean previous setup (if exists)
+minikube delete
+minikube start --driver=docker
+
+# 3. Configure Docker environment
+eval $(minikube docker-env)
+
+# 4. Build application image
+docker build -t secure-artifact-vault:latest .
+
+# 5. Create namespace
+kubectl create namespace artifact-vault
+
+# 6. Set default namespace
+kubectl config set-context --current --namespace=artifact-vault
+
+# 7. Create secrets
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-secrets
+  namespace: artifact-vault
+type: Opaque
+stringData:
+  database-url: "postgresql://artifact_user:artifact_pass@postgres:5432/artifact_vault"
+  jwt-secret-key: "local-development-secret-key-change-in-production"
+  postgres-password: "artifact_pass"
+EOF
+
+# 8. Create PersistentVolumeClaims
+kubectl apply -f k8s/postgres-pvc.yaml
+kubectl apply -f k8s/artifact-pvc.yaml
+
+# 9. Deploy PostgreSQL
+kubectl apply -f k8s/postgres.yaml
+
+# 10. Wait for PostgreSQL to be ready
+kubectl wait --for=condition=ready pod -l app=postgres --timeout=300s
+
+# 11. Deploy Application
+kubectl apply -f k8s/api.yaml
+kubectl apply -f k8s/api-service.yaml
+
+# 12. Wait for application to be ready
+kubectl wait --for=condition=ready pod -l app=secure-artifact-vault --timeout=300s
+
+# 13. Check all resources
+kubectl get all -n artifact-vault
+
+# 14. Get service details
+kubectl get service vault-service -n artifact-vault
+```
+
+---
+
+#### **Detailed Manual Step-by-Step Instructions**
+
+For comprehensive step-by-step instructions with explanations for each step, see [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+Quick reference of key steps below:
+
+**Step 1: Clean Minikube (Fresh Start)**
+```bash
+# Stop and delete any existing minikube cluster
+minikube delete
+```
+
+**Step 2: Start Fresh Minikube Cluster**
 ```bash
 minikube start --driver=docker
+# Expected output:
+# minikube v1.x.x on Darwin
+# Using the docker driver
+# Starting control plane node minikube in cluster minikube
+# Done! kubectl is now configured to use "minikube" cluster
 ```
 
-**3. Configure Docker Daemon**
+**Step 3: Configure Docker Environment**
 ```bash
 eval $(minikube docker-env)
 ```
 
-**4. Build Application Image**
+**Step 4: Build Docker Image**
 ```bash
 docker build -t secure-artifact-vault:latest .
+# Verify image was built
+docker images | grep secure-artifact-vault
 ```
 
-**5. Create Kubernetes Namespace**
+**Step 5: Create Kubernetes Namespace**
 ```bash
 kubectl create namespace artifact-vault
-kubectl config set-context --current --namespace=artifact-vault
+# Verify namespace created
+kubectl get namespaces
 ```
 
-**6. Create Local Secrets**
+**Step 6: Set Default Namespace**
 ```bash
-kubectl apply -f k8s/secret.local.yaml
+kubectl config set-context --current --namespace=artifact-vault
+# Verify context
+kubectl config current-context
 ```
 
-**Note:** Create `k8s/secret.local.yaml` with local development values:
+**Step 7: Create Secrets**
+
+Create secrets inline:
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-secrets
+  namespace: artifact-vault
+type: Opaque
+stringData:
+  database-url: "postgresql://artifact_user:artifact_pass@postgres:5432/artifact_vault"
+  jwt-secret-key: "dev-secret-key-12345-change-in-production"
+  postgres-password: "artifact_pass"
+EOF
+```
+
+Or create file `k8s/secret.local.yaml`:
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -533,114 +742,227 @@ metadata:
 type: Opaque
 stringData:
   database-url: "postgresql://artifact_user:artifact_pass@postgres:5432/artifact_vault"
-  jwt-secret-key: "local-development-secret-key-not-for-production"
+  jwt-secret-key: "dev-secret-key-12345-change-in-production"
   postgres-password: "artifact_pass"
 ```
 
-**7. Apply ConfigMap**
+Then apply:
 ```bash
-kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/secret.local.yaml
 ```
 
-**8. Create Persistent Volume Claims**
+**Step 8: Apply ConfigMap**
+```bash
+kubectl apply -f k8s/configmap.yaml
+# Verify
+kubectl get configmap
+```
+
+**Step 9: Create Persistent Volume Claims**
 ```bash
 kubectl apply -f k8s/postgres-pvc.yaml
 kubectl apply -f k8s/artifact-pvc.yaml
+
+# Verify PVCs created
+kubectl get pvc
 ```
 
-**9. Deploy PostgreSQL**
+**Step 10: Deploy PostgreSQL Database**
 ```bash
 kubectl apply -f k8s/postgres.yaml
+
+# Watch PostgreSQL startup
+kubectl get pods -w
+# Wait for postgres pod to be Running and Ready (1/1)
 ```
 
-**10. Deploy FastAPI Application**
+**Step 11: Deploy FastAPI Application**
 ```bash
 kubectl apply -f k8s/api.yaml
 kubectl apply -f k8s/api-service.yaml
+
+# Watch application startup
+kubectl get pods -w
+# Wait for secure-artifact-vault pods to be Running and Ready (1/1)
 ```
 
-**11. Verify Pods Are Running**
+**Step 12: Verify All Resources**
 ```bash
+# Check all pods
 kubectl get pods
+# Expected:
+# NAME                                     READY   STATUS    RESTARTS   AGE
+# postgres-xxxxxxxxx-xxxxx                 1/1     Running   0          2m
+# secure-artifact-vault-xxxxxxxxx-xxxxx    1/1     Running   0          1m
+# secure-artifact-vault-xxxxxxxxx-xxxxx    1/1     Running   0          1m
+# secure-artifact-vault-xxxxxxxxx-xxxxx    1/1     Running   0          1m
+
+# Check services
+kubectl get service
+# Expected:
+# NAME            TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)
+# vault-service   NodePort   10.x.x.x         <none>        80:xxxxx/TCP
+# postgres        ClusterIP  10.x.x.x         <none>        5432/TCP
 ```
 
-Expected output:
-```
-NAME                                       READY   STATUS    RESTARTS   AGE
-postgres-0                                 1/1     Running   0          2m
-secure-artifact-vault-xxxxxxxxxx-xxxxx     1/1     Running   0          1m
-secure-artifact-vault-xxxxxxxxxx-xxxxx     1/1     Running   0          1m
-```
+**Step 13: Access the Application**
 
-**12. Access Application**
-
-Get Minikube IP:
+Get Minikube IP and NodePort:
 ```bash
-minikube ip
+# Get Minikube IP
+MINIKUBE_IP=$(minikube ip)
+echo "Minikube IP: $MINIKUBE_IP"
+
+# Get NodePort
+NODEPORT=$(kubectl get service vault-service -o jsonpath='{.spec.ports[0].nodePort}')
+echo "NodePort: $NODEPORT"
+
+# Full URL
+echo "Application URL: http://$MINIKUBE_IP:$NODEPORT"
 ```
 
-Access via NodePort:
+Access via browser or curl:
 ```bash
-# Get the NodePort assigned
-kubectl get service vault-service -n artifact-vault
+# Health check
+curl http://$(minikube ip):$(kubectl get service vault-service -o jsonpath='{.spec.ports[0].nodePort}')/healthz
 
-# Access application
-# Open browser: http://<minikube-ip>:<node-port>
-# Or use curl:
-curl http://$(minikube ip):<node-port>/healthz
+# Swagger UI
+# Open: http://<minikube-ip>:<node-port>/docs
+
+# Readiness check
+curl http://$(minikube ip):$(kubectl get service vault-service -o jsonpath='{.spec.ports[0].nodePort}')/readyz
+```
+
+#### Port Forwarding (Alternative Access Method)
+
+If NodePort doesn't work, use port forwarding:
+```bash
+# Forward local port 8000 to service
+kubectl port-forward svc/vault-service 8000:80
+
+# Access via localhost
+curl http://localhost:8000/healthz
+# Open browser: http://localhost:8000/docs
+```
+
+#### Viewing Logs
+
+```bash
+# View specific pod logs
+kubectl logs <pod-name>
+
+# Follow logs in real-time
+kubectl logs -f <pod-name>
+
+# View logs for all pods in deployment
+kubectl logs -f deployment/secure-artifact-vault
+
+# View PostgreSQL logs
+kubectl logs -f deployment/postgres
 ```
 
 #### Useful Minikube Commands
 
 ```bash
-# View Minikube dashboard
+# View Minikube dashboard (opens browser)
 minikube dashboard
 
-# SSH into Minikube
+# SSH into Minikube node
 minikube ssh
 
-# View logs
-kubectl logs -f deployment/secure-artifact-vault -n artifact-vault
+# Check Minikube status
+minikube status
 
-# Port forward for local access
-kubectl port-forward svc/vault-service 8000:80 -n artifact-vault
+# View resource usage
+kubectl top nodes
+kubectl top pods
+
+# Describe resources
+kubectl describe pod <pod-name>
+kubectl describe service vault-service
+
+# Execute commands in pod
+kubectl exec -it <pod-name> -- bash
+
+# Copy files to/from pod
+kubectl cp <pod-name>:/path/to/file ./local-path
+kubectl cp ./local-path <pod-name>:/path/to/file
 
 # Stop Minikube
 minikube stop
 
-# Delete Minikube cluster
+# Delete Minikube cluster (fresh start)
 minikube delete
+```
+
+#### Cleaning Up
+
+To completely remove and start fresh:
+```bash
+# Delete all resources in namespace
+kubectl delete namespace artifact-vault
+
+# Stop Minikube
+minikube stop
+
+# Delete entire Minikube cluster
+minikube delete
+
+# Then restart from Step 1
 ```
 
 #### Troubleshooting
 
 **Pods not starting:**
 ```bash
-# Check pod status
-kubectl describe pod <pod-name> -n artifact-vault
+# Check pod status and events
+kubectl describe pod <pod-name>
 
-# Check logs
-kubectl logs <pod-name> -n artifact-vault
+# Check pod logs
+kubectl logs <pod-name>
+
+# Check events in namespace
+kubectl get events -n artifact-vault
 ```
 
-**Database connection issues:**
+**Database connection failed:**
 ```bash
-# Verify PostgreSQL pod
-kubectl get pods -l app=postgres -n artifact-vault
+# Check PostgreSQL pod
+kubectl get pod -l app=postgres
+kubectl logs -f postgres-xxxxx
 
-# Check PostgreSQL logs
-kubectl logs postgres-0 -n artifact-vault
+# Check if database is accepting connections
+kubectl exec -it postgres-xxxxx -- psql -U artifact_user -d artifact_vault
 ```
 
-**Port access issues:**
+**Service not accessible:**
 ```bash
-# Check if service is running
-kubectl get service vault-service -n artifact-vault
+# Check service
+kubectl get service vault-service
+kubectl describe service vault-service
 
-# Port forward as alternative
-kubectl port-forward svc/vault-service 8000:80 -n artifact-vault
+# Check if pods are ready
+kubectl get pods -l app=secure-artifact-vault
+```
 
-# Then access http://localhost:8000
+**Image pull errors:**
+```bash
+# Ensure you built the image with minikube docker-env
+eval $(minikube docker-env)
+docker build -t secure-artifact-vault:latest .
+
+# Verify image exists
+docker images
+```
+
+**Out of resources:**
+```bash
+# Check resource allocation
+kubectl describe nodes
+
+# Restart with more resources
+minikube delete
+minikube start --driver=docker --cpus 4 --memory 4096
 ```
 
 ### AWS ECS Deployment
@@ -671,7 +993,7 @@ docker push <account>.dkr.ecr.us-east-1.amazonaws.com/secure-artifact-vault:late
    - Request ID tracking
    - OpenTelemetry integration
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 secure-artifact-vault/
@@ -707,7 +1029,8 @@ secure-artifact-vault/
 │   │       ├── share.py
 │   │       ├── audit_log.py
 │   │       ├── refresh_token.py
-│   │       └── user_org_role.py
+│   │       ├── user_org_role.py
+│   │       └── password_history.py
 │   ├── schemas/                # Pydantic models
 │   │   ├── auth.py
 │   │   ├── user.py
@@ -729,30 +1052,70 @@ secure-artifact-vault/
 │   │   ├── audit_repo.py
 │   │   ├── org_repo.py
 │   │   ├── user_org_role_repo.py
-│   │   └── refresh_token_repo.py
+│   │   ├── refresh_token_repo.py
+│   │   └── password_history_repo.py  
 │   ├── middleware/
 │   │   └── observability.py    # Request middleware
 │   ├── utils/
+│   │   ├── pagination.py
+│   │   ├── time.py
+│   │   ├── uuid.py
 │   │   └── __init__.py
 │   └── cron/                   # Scheduled tasks
+│       └── cleanup.py
 ├── alembic/                    # Database migrations
 │   ├── versions/
+│   │   ├── 72ecff915d9c_create_core_tables.py
+│   │   ├── 9c56c0487ed3_initial_empty_migration.py
+│   │   ├── 9c6d17c204ca_add_checksum_to_artifacts.py
+│   │   ├── 1398671fa5d5_add_prefix_search_index_on_artifacts.py
+│   │   ├── abc123def456_add_password_expires_at_to_users.py
+│   │   └── def456abc789_add_user_password_history_table.py
 │   ├── env.py
-│   └── script.py.mako
+│   ├── script.py.mako
+│   └── README
+├── k8s/                        # Kubernetes manifests
+│   ├── api.yaml                # API deployment
+│   ├── api-service.yaml        # API service
+│   ├── postgres.yaml           # PostgreSQL deployment
+│   ├── postgres-pvc.yaml       # PostgreSQL persistent volume
+│   ├── artifact-pvc.yaml       # Artifact storage persistent volume
+│   ├── configmap.yaml          # ConfigMap for environment
+│   └── secret.yaml             # Secrets template
 ├── tests/                      # Test suite
 │   ├── conftest.py            # Pytest fixtures
-│   ├── test_*.py              # Test files
-│   └── htmlcov/               # Coverage reports
+│   ├── test_*.py              # Test files (12+ test modules)
+│   ├── test_additional_coverage.py
+│   ├── test_api_endpoints.py
+│   ├── test_api_endpoints_extended.py
+│   ├── test_config.py
+│   ├── test_database.py
+│   ├── test_integration.py
+│   ├── test_logging.py
+│   ├── test_main.py
+│   ├── test_observability.py
+│   ├── test_repositories.py
+│   ├── test_request_context.py
+│   ├── test_schemas.py
+│   ├── test_security_utils.py
+│   ├── test_services.py
+│   └── README.md
 ├── scripts/
 │   └── seed_data.py           # Initial data seeding
 ├── storage/                    # File storage
-├── htmlcov/                    # Coverage reports
-├── requirements.txt            # Python dependencies
-├── pytest.ini                  # Pytest configuration
-├── docker-compose.yml          # Docker Compose configuration
+│   └── artifacts/             # Artifact storage directory
+├── alembic.ini                 # Alembic configuration
 ├── Dockerfile                  # Docker image definition
+├── docker-compose.yml          # Docker Compose configuration
+├── entrypoint.sh               # Docker entrypoint script
+├── deploy-minikube.sh          # Automated Minikube deployment script
+├── run_tests.sh                # Test execution script
+├── .env                        # Environment variables (local)
 ├── .env.example                # Environment variables template
 ├── .gitignore                  # Git ignore rules
+├── requirements.txt            # Python dependencies
+├── pytest.ini                  # Pytest configuration
+├── DEPLOYMENT.md               # Deployment guide and troubleshooting
 ├── README.md                   # This file
 └── LICENSE                     # License file
 ```

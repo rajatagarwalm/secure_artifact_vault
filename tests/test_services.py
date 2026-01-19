@@ -18,7 +18,7 @@ def test_login_success():
     db = MagicMock()
     service = AuthService(db)
 
-    user = MagicMock(id="u1", password_hash="hash")
+    user = MagicMock(id="u1", password_hash="hash", password_expires_at=None)
 
     service.user_repo = MagicMock()
     service.role_repo = MagicMock()
@@ -119,6 +119,143 @@ def test_get_user_permissions():
 
     perms = service.get_user_permissions("u1", {"permissions": ["*"]})
     assert isinstance(perms, list)
+
+
+def test_create_user_success():
+    """Test successful user creation by superadmin."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+    service.role_repo = MagicMock()
+    service.audit = MagicMock()
+
+    user = MagicMock(id="u1", email="newuser@example.com", is_active=True)
+    mapping = MagicMock(id="m1")
+
+    service.user_repo.get_by_email.return_value = None
+    service.user_repo.create.return_value = user
+    service.role_repo.assign.return_value = mapping
+
+    actor = {"permissions": ["*"], "id": "admin"}
+
+    with patch("app.services.user_service.hash_password", return_value="hashed_pwd"):
+        result = service.create_user(
+            email="newuser@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="editor",
+            actor=actor,
+        )
+
+    assert result["id"] == "u1"
+    assert result["email"] == "newuser@example.com"
+    assert result["message"] == "User created successfully"
+    service.user_repo.create.assert_called_once()
+    service.role_repo.assign.assert_called_once()
+    service.audit.log.assert_called_once()
+
+
+def test_create_user_non_superadmin_denied():
+    """Test that non-superadmin cannot create users."""
+    service = UserService(MagicMock())
+
+    actor = {"permissions": ["artifact:read"], "org_id": "o1", "id": "regular_user"}
+
+    with pytest.raises(ValueError) as exc_info:
+        service.create_user(
+            email="newuser@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="editor",
+            actor=actor,
+        )
+
+    assert "Only superadmin can create users" in str(exc_info.value)
+
+
+def test_create_user_duplicate_email():
+    """Test that duplicate email raises error."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+
+    existing_user = MagicMock(id="u2", email="existing@example.com")
+    service.user_repo.get_by_email.return_value = existing_user
+
+    actor = {"permissions": ["*"], "id": "admin"}
+
+    with pytest.raises(ValueError) as exc_info:
+        service.create_user(
+            email="existing@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="editor",
+            actor=actor,
+        )
+
+    assert "already exists" in str(exc_info.value)
+
+
+def test_create_user_assigns_correct_role():
+    """Test that user is assigned with the correct role."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+    service.role_repo = MagicMock()
+    service.audit = MagicMock()
+
+    user = MagicMock(id="u1", email="newuser@example.com", is_active=True)
+    mapping = MagicMock(id="m1")
+
+    service.user_repo.get_by_email.return_value = None
+    service.user_repo.create.return_value = user
+    service.role_repo.assign.return_value = mapping
+
+    actor = {"permissions": ["*"], "id": "admin"}
+
+    with patch("app.services.user_service.hash_password", return_value="hashed_pwd"):
+        service.create_user(
+            email="newuser@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="admin",
+            actor=actor,
+        )
+
+    service.role_repo.assign.assert_called_once_with("u1", "o1", "admin")
+
+
+def test_create_user_audit_logged():
+    """Test that user creation is logged in audit trail."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+    service.role_repo = MagicMock()
+    service.audit = MagicMock()
+
+    user = MagicMock(id="u1", email="newuser@example.com", is_active=True)
+    mapping = MagicMock(id="m1")
+
+    service.user_repo.get_by_email.return_value = None
+    service.user_repo.create.return_value = user
+    service.role_repo.assign.return_value = mapping
+
+    actor = {"permissions": ["*"], "id": "admin123"}
+
+    with patch("app.services.user_service.hash_password", return_value="hashed_pwd"):
+        service.create_user(
+            email="newuser@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="viewer",
+            actor=actor,
+        )
+
+    service.audit.log.assert_called_once()
+    call_args = service.audit.log.call_args
+    assert call_args[1]["action"] == "user_created"
+    assert call_args[1]["actor_id"] == "admin123"
+    assert call_args[1]["org_id"] == "o1"
+    assert call_args[1]["resource_type"] == "user"
+    assert call_args[1]["resource_id"] == "u1"
+    assert call_args[1]["extra_data"]["email"] == "newuser@example.com"
+    assert call_args[1]["extra_data"]["role"] == "viewer"
 
 
 # =====================================================
@@ -230,3 +367,163 @@ def test_get_artifact_cross_org():
 
     with pytest.raises(ValueError):
         service.get_artifact("a1", "o1", False)
+
+
+# =====================================================
+# PASSWORD MANAGEMENT TESTS
+# =====================================================
+
+def test_change_password_success():
+    """Test successful password change."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+    service.password_history = MagicMock()
+    service.audit = MagicMock()
+
+    user = MagicMock(id="u1", email="user@example.com", password_hash="old_hash")
+    service.user_repo.get_by_id.return_value = user
+
+    actor = {"id": "u1", "org_id": "o1"}
+
+    with patch("app.services.user_service.verify_password", return_value=True), \
+         patch("app.services.user_service.hash_password", return_value="new_hash"):
+        result = service.change_password(
+            user_id="u1",
+            old_password="old_password",
+            new_password="new_password",
+            actor=actor,
+        )
+
+    assert result["message"] == "Password changed successfully"
+    service.password_history.create.assert_called_once()
+    service.audit.log.assert_called_once()
+
+
+def test_change_password_wrong_old_password():
+    """Test password change fails with wrong old password."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+
+    user = MagicMock(id="u1", password_hash="old_hash")
+    service.user_repo.get_by_id.return_value = user
+
+    actor = {"id": "u1", "org_id": "o1"}
+
+    with patch("app.services.user_service.verify_password", return_value=False):
+        with pytest.raises(ValueError) as exc_info:
+            service.change_password(
+                user_id="u1",
+                old_password="wrong_password",
+                new_password="new_password",
+                actor=actor,
+            )
+        assert "Incorrect current password" in str(exc_info.value)
+
+
+def test_change_password_other_user_denied():
+    """Test that user cannot change another user's password."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+
+    user = MagicMock(id="u2", password_hash="old_hash")
+    service.user_repo.get_by_id.return_value = user
+
+    actor = {"id": "u1", "org_id": "o1"}
+
+    with patch("app.services.user_service.verify_password", return_value=True):
+        with pytest.raises(ValueError) as exc_info:
+            service.change_password(
+                user_id="u2",
+                old_password="old_password",
+                new_password="new_password",
+                actor=actor,
+            )
+        assert "own password" in str(exc_info.value)
+
+
+def test_reset_password_success():
+    """Test successful admin password reset."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+    service.password_history = MagicMock()
+    service.audit = MagicMock()
+
+    user = MagicMock(id="u2", email="user@example.com", password_hash="old_hash")
+    service.user_repo.get_by_id.return_value = user
+
+    actor = {"id": "admin", "permissions": ["*"], "org_id": "o1"}
+
+    with patch("app.services.user_service.hash_password", return_value="new_hash"):
+        result = service.reset_password(
+            user_id="u2",
+            new_password="new_password",
+            actor=actor,
+        )
+
+    assert result["id"] == "u2"
+    assert result["email"] == "user@example.com"
+    assert result["message"] == "Password reset successfully"
+    assert "password_expires_at" in result
+    service.password_history.create.assert_called_once()
+    service.audit.log.assert_called_once()
+
+
+def test_reset_password_non_superadmin_denied():
+    """Test that non-superadmin cannot reset passwords."""
+    service = UserService(MagicMock())
+
+    actor = {"id": "admin", "permissions": ["user:manage"], "org_id": "o1"}
+
+    with pytest.raises(ValueError) as exc_info:
+        service.reset_password(
+            user_id="u2",
+            new_password="new_password",
+            actor=actor,
+        )
+    assert "Only superadmin" in str(exc_info.value)
+
+
+def test_is_password_expired_true():
+    """Test password expiration check returns True for expired password."""
+    from datetime import datetime, timedelta
+    
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+
+    user = MagicMock(
+        id="u1",
+        password_expires_at=datetime.utcnow() - timedelta(hours=1)
+    )
+    service.user_repo.get_by_id.return_value = user
+
+    result = service.is_password_expired("u1")
+    assert result is True
+
+
+def test_is_password_expired_false():
+    """Test password expiration check returns False for valid password."""
+    from datetime import datetime, timedelta
+    
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+
+    user = MagicMock(
+        id="u1",
+        password_expires_at=datetime.utcnow() + timedelta(hours=1)
+    )
+    service.user_repo.get_by_id.return_value = user
+
+    result = service.is_password_expired("u1")
+    assert result is False
+
+
+def test_is_password_expired_no_expiration():
+    """Test password expiration check returns False when no expiration set."""
+    service = UserService(MagicMock())
+    service.user_repo = MagicMock()
+
+    user = MagicMock(id="u1", password_expires_at=None)
+    service.user_repo.get_by_id.return_value = user
+
+    result = service.is_password_expired("u1")
+    assert result is False

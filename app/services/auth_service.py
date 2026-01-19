@@ -38,14 +38,19 @@ class AuthService:
             logger.warning("Invalid password", extra={"user_id": str(user.id)})
             raise ValueError("Invalid credentials")
 
-        # ✅ FETCH ROLES FROM DB
+        # CHECK IF PASSWORD HAS EXPIRED
+        if user.password_expires_at and datetime.utcnow() > user.password_expires_at:
+            logger.warning("Expired password attempt", extra={"user_id": str(user.id)})
+            raise ValueError("Password has expired. Please change your password.")
+
+        # FETCH ROLES FROM DB
         roles = self.role_repo.get_roles_for_user(str(user.id))
         role_names = [r.role for r in roles]
 
-        # ✅ RESOLVE PERMISSIONS
+        # RESOLVE PERMISSIONS
         permissions = resolve_permissions(role_names)
 
-        # ✅ EMBED PERMISSIONS IN TOKEN
+        # EMBED PERMISSIONS IN TOKEN
         access_token = create_access_token(str(user.id), permissions)
         refresh_token, expires_at = create_refresh_token(str(user.id))
 

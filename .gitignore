@@ -1,9 +1,14 @@
 .env
 venv
-alembic.ini
-alembic/
 __pycache__/
 *.pyc
 .vscode/
-storage
+storage/artifacts
 .DS_Store
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+dist/
+build/
+*.egg-info/

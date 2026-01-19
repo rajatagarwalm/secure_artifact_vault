@@ -60,6 +60,71 @@ class TestUserEndpoints:
         from app.api.v1.users import router
         assert router is not None
 
+    def test_create_user_endpoint_success(self):
+        """Test POST /users endpoint for creating user successfully."""
+        from app.api.v1.users import create_user
+        from app.schemas.user import CreateUserRequest
+
+        db = MagicMock()
+        payload = CreateUserRequest(
+            email="newuser@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="editor"
+        )
+        user = {"id": "u1", "email": "newuser@example.com", "message": "User created successfully"}
+        actor = {"permissions": ["*"], "id": "admin"}
+
+        with patch("app.api.v1.users.UserService") as mock_service:
+            mock_service.return_value.create_user.return_value = user
+            result = create_user(payload, user=actor, db=db)
+
+        assert result["id"] == "u1"
+        assert result["email"] == "newuser@example.com"
+        assert result["message"] == "User created successfully"
+
+    def test_create_user_endpoint_permission_denied(self):
+        """Test POST /users endpoint denies non-superadmin."""
+        from app.api.v1.users import create_user
+        from app.schemas.user import CreateUserRequest
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        payload = CreateUserRequest(
+            email="newuser@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="editor"
+        )
+        actor = {"permissions": ["artifact:read"], "id": "regular_user"}
+
+        with patch("app.api.v1.users.UserService") as mock_service:
+            mock_service.return_value.create_user.side_effect = ValueError("Only superadmin can create users")
+            with pytest.raises(HTTPException) as exc_info:
+                create_user(payload, user=actor, db=db)
+            assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_create_user_endpoint_duplicate_email(self):
+        """Test POST /users endpoint rejects duplicate email."""
+        from app.api.v1.users import create_user
+        from app.schemas.user import CreateUserRequest
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        payload = CreateUserRequest(
+            email="existing@example.com",
+            password="secure_password",
+            org_id="o1",
+            role="editor"
+        )
+        actor = {"permissions": ["*"], "id": "admin"}
+
+        with patch("app.api.v1.users.UserService") as mock_service:
+            mock_service.return_value.create_user.side_effect = ValueError("User with email existing@example.com already exists")
+            with pytest.raises(HTTPException) as exc_info:
+                create_user(payload, user=actor, db=db)
+            assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
 
 class TestArtifactEndpoints:
     """Tests for artifact management endpoints."""
@@ -306,3 +371,89 @@ class TestEndpointIntegration:
     def test_create_then_update_then_delete_resource(self, mock_settings):
         """Test full CRUD flow."""
         pass
+
+class TestPasswordManagementEndpoints:
+    """Tests for password management endpoints."""
+
+    def test_change_password_endpoint_success(self):
+        """Test POST /users/change-password endpoint."""
+        from app.api.v1.users import change_password
+        from app.schemas.user import ChangePasswordRequest
+
+        db = MagicMock()
+        payload = ChangePasswordRequest(
+            old_password="old_pwd",
+            new_password="new_pwd"
+        )
+        actor = {"id": "u1", "org_id": "o1"}
+
+        with patch("app.api.v1.users.UserService") as mock_service:
+            mock_service.return_value.change_password.return_value = {
+                "message": "Password changed successfully"
+            }
+            result = change_password(payload, user=actor, db=db)
+
+        assert result["message"] == "Password changed successfully"
+
+    def test_change_password_endpoint_wrong_password(self):
+        """Test change password endpoint with wrong old password."""
+        from app.api.v1.users import change_password
+        from app.schemas.user import ChangePasswordRequest
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        payload = ChangePasswordRequest(
+            old_password="wrong_pwd",
+            new_password="new_pwd"
+        )
+        actor = {"id": "u1", "org_id": "o1"}
+
+        with patch("app.api.v1.users.UserService") as mock_service:
+            mock_service.return_value.change_password.side_effect = ValueError("Incorrect current password")
+            with pytest.raises(HTTPException) as exc_info:
+                change_password(payload, user=actor, db=db)
+            assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_reset_password_endpoint_success(self):
+        """Test POST /users/reset-password endpoint."""
+        from app.api.v1.users import reset_password
+        from app.schemas.user import ResetPasswordRequest
+
+        db = MagicMock()
+        payload = ResetPasswordRequest(
+            user_id="u2",
+            new_password="new_pwd"
+        )
+        actor = {"id": "admin", "permissions": ["*"], "org_id": "o1"}
+
+        with patch("app.api.v1.users.UserService") as mock_service:
+            mock_service.return_value.reset_password.return_value = {
+                "id": "u2",
+                "email": "user@example.com",
+                "message": "Password reset successfully",
+                "password_expires_at": "2026-01-20T00:00:00"
+            }
+            result = reset_password(payload, user=actor, db=db)
+
+        assert result["id"] == "u2"
+        assert result["message"] == "Password reset successfully"
+        assert "password_expires_at" in result
+
+    def test_reset_password_endpoint_permission_denied(self):
+        """Test reset password endpoint denies non-superadmin."""
+        from app.api.v1.users import reset_password
+        from app.schemas.user import ResetPasswordRequest
+        from fastapi import HTTPException
+
+        db = MagicMock()
+        payload = ResetPasswordRequest(
+            user_id="u2",
+            new_password="new_pwd"
+        )
+        actor = {"id": "admin", "permissions": ["user:manage"], "org_id": "o1"}
+
+        with patch("app.api.v1.users.UserService") as mock_service:
+            mock_service.return_value.reset_password.side_effect = ValueError("Only superadmin can reset user passwords")
+            with pytest.raises(HTTPException) as exc_info:
+                reset_password(payload, user=actor, db=db)
+            assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
