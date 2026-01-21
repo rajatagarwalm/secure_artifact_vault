@@ -1,7 +1,6 @@
 import schemathesis
-from schemathesis import from_uri
 
-schema = from_uri("http://localhost:8000/openapi.json")
+schema = schemathesis.openapi.from_uri("http://localhost:8000/openapi.json")
 
 @schema.parametrize()
 def test_api_contract(case):
