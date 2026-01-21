@@ -1,0 +1,37 @@
+name: Swagger Contract Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  contract-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+          pip install schemathesis pytest httpx
+
+      - name: Start stack
+        run: |
+          docker compose up -d --build
+          sleep 15
+
+      - name: Run contract tests
+        run: |
+          pytest tests/contract -v
+
+      - name: Shutdown
+        if: always()
+        run: docker compose down
