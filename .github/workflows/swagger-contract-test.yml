@@ -21,7 +21,7 @@ jobs:
       - name: Install deps
         run: |
           pip install -r requirements.txt
-          pip install schemathesis pytest httpx
+          pip install -r requirements-contract.txt
 
       - name: Create env file
         run: cp .env.example .env
