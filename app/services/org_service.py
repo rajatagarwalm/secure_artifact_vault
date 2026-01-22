@@ -116,28 +116,4 @@ class OrganizationService:
                 },
             )
 
-        # 4️⃣ Invalidate share links
-        shares = (
-            self.db.query(Share)
-            .filter(
-                Share.org_id == org.id,
-                Share.is_active.is_(True),
-            )
-            .all()
-        )
-
-        for share in shares:
-            share.is_active = False
-
-            self.audit.log(
-                action="share_revoked",
-                resource_type="share",
-                actor_id=actor["id"],
-                org_id=org.id,
-                resource_id=str(share.id),
-                extra_data={
-                    
-                },
-            )
-
-        self.db.commit()
+        

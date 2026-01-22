@@ -137,13 +137,13 @@ def main():
         for i in range(1, 4):
             org = get_or_create_org(db, f"Organization-{i}")
 
-            admin = get_or_create_user(db, f"admin{i}@org{i}.com")
+            admin = get_or_create_user(db, f"admin1@org{i}.com")
             assign_role_if_not_exists(db, admin.id, org.id, "admin")
 
-            editor = get_or_create_user(db, f"editor{i}@org{i}.com")
+            editor = get_or_create_user(db, f"editor1@org{i}.com")
             assign_role_if_not_exists(db, editor.id, org.id, "editor")
 
-            viewer = get_or_create_user(db, f"viewer{i}@org{i}.com")
+            viewer = get_or_create_user(db, f"viewer1@org{i}.com")
             assign_role_if_not_exists(db, viewer.id, org.id, "viewer")
 
             create_artifact_if_not_exists(

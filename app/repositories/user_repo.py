@@ -56,7 +56,7 @@ class UserRepository:
             .all()
         )
 
-def create(self, email: str, password_hash: str, password_expires_at=None):
+    def create(self, email: str, password_hash: str, password_expires_at=None):
         user = User(
             email=email,
             password_hash=password_hash,

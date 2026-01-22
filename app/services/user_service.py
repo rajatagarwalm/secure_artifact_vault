@@ -8,6 +8,7 @@ from app.repositories.password_history_repo import PasswordHistoryRepository
 from app.core.permissions import resolve_permissions
 from app.core.security import hash_password, verify_password
 from app.core.config import settings
+from app.repositories.org_repo import OrganizationRepository
 
 
 class UserService:
@@ -15,6 +16,7 @@ class UserService:
         self.db = db
         self.user_repo = UserRepository(db)
         self.role_repo = UserOrgRoleRepository(db)
+        self.org_repo = OrganizationRepository(db)
         self.audit = AuditRepository(db)
         self.password_history = PasswordHistoryRepository(db)
 
@@ -48,6 +50,10 @@ class UserService:
         existing_user = self.user_repo.get_by_email(email)
         if existing_user:
             raise ValueError(f"User with email {email} already exists")
+        
+        existing_org = self.org_repo.get_by_id(org_id)
+        if not existing_org:
+            raise ValueError(f"Organization with id {org_id} does not exist")
 
         # Create user with hashed password
         password_hash = hash_password(password)
